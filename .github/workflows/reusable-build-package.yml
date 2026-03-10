@@ -67,8 +67,13 @@ jobs:
           # Install yq for YAML parsing
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-          
-          # ORAS is pre-installed on GitHub runners
+
+          # Install ORAS CLI
+          ORAS_VERSION="1.2.2"
+          curl -sL "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin oras
+          sudo chmod +x /usr/local/bin/oras
+
           oras version
       
       - name: Verify package exists

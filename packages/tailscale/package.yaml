@@ -1,0 +1,13 @@
+name: tailscale
+version: "1.94.2"
+release: "1"
+source:
+  type: rpm
+  url: https://pkgs.tailscale.com/stable/centos/10/{arch}/tailscale-1.94.2-1.{arch}.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10
+description: "Tailscale mesh VPN client"
+upstream: "https://tailscale.com/"

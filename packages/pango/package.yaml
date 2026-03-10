@@ -1,0 +1,11 @@
+name: pango
+version: "1.56.4"
+release: "1.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/pango/1.56.4/1.el10/src/pango-1.56.4-1.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

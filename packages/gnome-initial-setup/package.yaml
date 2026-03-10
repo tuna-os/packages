@@ -1,0 +1,11 @@
+name: gnome-initial-setup
+version: "48.1"
+release: "1.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/gnome-initial-setup/48.1/1.el10/src/gnome-initial-setup-48.1-1.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

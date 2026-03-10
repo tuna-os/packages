@@ -1,0 +1,11 @@
+name: libadwaita
+version: "1.7.5"
+release: "1.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/libadwaita/1.7.5/1.el10/src/libadwaita-1.7.5-1.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

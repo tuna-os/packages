@@ -56,10 +56,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            mock \
             rpm \
-            yum-utils \
-            createrepo_c \
+            rpm2cpio \
+            cpio \
+            curl \
+            git \
+            jq \
             python3-yaml
           
           # Install yq for YAML parsing

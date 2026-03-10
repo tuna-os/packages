@@ -1,0 +1,11 @@
+name: xdg-desktop-portal-gnome
+version: "48.0"
+release: "1.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/xdg-desktop-portal-gnome/48.0/1.el10/src/xdg-desktop-portal-gnome-48.0-1.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

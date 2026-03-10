@@ -9,6 +9,7 @@ This repository builds RPM packages from upstream sources (Fedora SRPMs/Git) and
 **Packages provided:**
 - GNOME 48 stack (gnome-shell, mutter, and dependencies)
 - MoreWaita icon theme
+- Tailscale VPN package
 
 **Architecture support:**
 - x86_64 (standard)
@@ -49,6 +50,9 @@ release: "1"
 source:
   type: srpm  # or 'git', 'tarball'
   url: https://kojipkgs.fedoraproject.org/packages/gnome-shell/48.0/1.fc42/src/gnome-shell-48.0-1.fc42.src.rpm
+# Optional: override with a forked spec from Pagure (raw .spec URL)
+spec_source:
+   url: https://pagure.io/forks/<user>/rpms/gnome-shell/raw/<branch>/f/gnome-shell.spec
 arches:
   - x86_64
   - x86_64_v2

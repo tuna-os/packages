@@ -1,0 +1,47 @@
+name: Build Tailscale Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/tailscale/**'
+      - '.github/workflows/build-tailscale.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - 'packages/tailscale/**'
+      - '.github/workflows/build-tailscale.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    name: Determine publish flag
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.set-publish.outputs.publish }}
+    steps:
+      - name: Determine publish flag
+        id: set-publish
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    name: Build tailscale
+    needs: prepare
+    uses: ./.github/workflows/reusable-build-package.yml
+    with:
+      package-name: tailscale
+      arches: '["x86_64", "x86_64_v2", "aarch64"]'
+      publish: ${{ needs.prepare.outputs.publish == 'true' }}
+    secrets:
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

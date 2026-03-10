@@ -1,13 +1,15 @@
 name: gnome-shell
-version: "48.0"
-release: "1"
+version: "48.3"
+release: "7.el10"
 source:
   type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/gnome-shell/48.0/1.fc42/src/gnome-shell-48.0-1.fc42.src.rpm
+  url: https://kojipkgs.fedoraproject.org/packages/gnome-shell/48.3/7.el10/src/gnome-shell-48.3-7.el10.src.rpm
+spec_source:
+  type: local
+  repo: https://src.fedoraproject.org/forks/jreilly1821/rpms/gnome-shell.git
+  branch: rawhide-el10+-no-x11
 arches:
   - x86_64
   - x86_64_v2
   - aarch64
 el_version: 10
-description: "GNOME Shell desktop environment"
-upstream: "https://gitlab.gnome.org/GNOME/gnome-shell"

@@ -1,0 +1,11 @@
+name: tecla
+version: "47.0"
+release: "2.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/tecla/47.0/2.el10/src/tecla-47.0-2.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

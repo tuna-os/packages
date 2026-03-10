@@ -1,0 +1,11 @@
+name: poppler
+version: "25.02.0"
+release: "2.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/poppler/25.02.0/2.el10/src/poppler-25.02.0-2.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

@@ -1,0 +1,11 @@
+name: libcupsfilters
+version: "2.0.0"
+release: "10.1.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/libcupsfilters/2.0.0/10.1.el10/src/libcupsfilters-2.0.0-10.1.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

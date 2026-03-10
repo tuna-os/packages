@@ -1,0 +1,11 @@
+name: gdm
+version: "48.0"
+release: "3.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/gdm/48.0/3.el10/src/gdm-48.0-3.el10.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

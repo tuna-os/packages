@@ -1,0 +1,15 @@
+name: gnome-settings-daemon
+version: "48.1"
+release: "3.el10"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/gnome-settings-daemon/48.1/3.el10/src/gnome-settings-daemon-48.1-3.el10.src.rpm
+spec_source:
+  type: local
+  repo: https://src.fedoraproject.org/forks/jreilly1821/rpms/gnome-settings-daemon.git
+  branch: rawhide-rhel-server-defaults
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10

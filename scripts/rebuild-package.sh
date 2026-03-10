@@ -268,7 +268,7 @@ echo "  Output directory: ${RPMBUILD_TOPDIR}/RPMS"
 find "${RPMBUILD_TOPDIR}/RPMS" -name "*.rpm" -type f -print -exec ls -lh {} \; | head -n 20 || echo "  No RPMs found"
 
 # Find built RPM
-BUILT_RPM=$(find "${RPMBUILD_TOPDIR}/RPMS" -name "${PACKAGE_NAME}-*.rpm" -type f ! -name "*.src.rpm" | head -n1)
+BUILT_RPM=$(find "${RPMBUILD_TOPDIR}/RPMS" -name "${PACKAGE_NAME}[-_]*.rpm" -type f ! -name "*.src.rpm" | head -n1)
 
 if [ -n "${BUILT_RPM}" ] && [ -f "${BUILT_RPM}" ]; then
     echo

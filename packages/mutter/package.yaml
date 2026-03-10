@@ -1,0 +1,13 @@
+name: mutter
+version: "48.0"
+release: "1"
+source:
+  type: srpm
+  url: https://kojipkgs.fedoraproject.org/packages/mutter/48.0/1.fc42/src/mutter-48.0-1.fc42.src.rpm
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10
+description: "Window and compositing manager for GNOME"
+upstream: "https://gitlab.gnome.org/GNOME/mutter"

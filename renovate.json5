@@ -1,0 +1,55 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices"
+  ],
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "Auto-merge package version updates after CI passes",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Extract version from package.yaml files",
+      "fileMatch": ["^packages/.*/package\\.yaml$"],
+      "matchStrings": [
+        "name:\\s*(?<depName>.+?)\\nversion:\\s*[\"']?(?<currentValue>[^\"'\\n]+)[\"']?\\n(?:.*\\n)*?source:\\s*\\n\\s*type:\\s*(?<sourceType>\\w+)\\n\\s*url:\\s*(?<sourceUrl>.+)"
+      ],
+      "datasourceTemplate": "custom.koji",
+      "versioningTemplate": "rpm"
+    },
+    {
+      "customType": "regex",
+      "description": "Extract GitHub releases for git-based packages",
+      "fileMatch": ["^packages/morewaita-icon-theme/package\\.yaml$"],
+      "matchStrings": [
+        "name:\\s*(?<depName>morewaita-icon-theme)\\nversion:\\s*[\"']?(?<currentValue>[^\"'\\n]+)[\"']?\\n(?:.*\\n)*?source:\\s*\\n\\s*type:\\s*git\\n\\s*url:\\s*https://github\\.com/(?<packageName>[^/]+/[^/\\.]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    }
+  ],
+  "customDatasources": {
+    "koji": {
+      "defaultRegistryUrlTemplate": "https://koji.fedoraproject.org/koji",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": [{\"version\": \"{{version}}\"}]}"
+      ]
+    }
+  },
+  "schedule": [
+    "before 3am on Sunday"
+  ],
+  "timezone": "UTC",
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 10,
+  "separateMinorPatch": false,
+  "labels": ["dependencies", "automated"],
+  "assignees": [],
+  "reviewers": []
+}

@@ -1,0 +1,51 @@
+name: Build MoreWaita Icon Theme
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/morewaita-icon-theme/**'
+      - '.github/workflows/build-morewaita.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - 'packages/morewaita-icon-theme/**'
+      - '.github/workflows/build-morewaita.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  workflow_dispatch:
+  schedule:
+    # Rebuild weekly on Sundays at 3 AM UTC (after GNOME builds)
+    - cron: '0 3 * * 0'
+
+jobs:
+  prepare:
+    name: Determine publish flag
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.set-publish.outputs.publish }}
+    steps:
+      - name: Determine publish flag
+        id: set-publish
+        run: |
+          # Publish on push to main or manual dispatch
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    name: Build MoreWaita
+    needs: prepare
+    uses: ./.github/workflows/reusable-build-package.yml
+    with:
+      package-name: morewaita-icon-theme
+      arches: '["x86_64", "x86_64_v2", "aarch64"]'
+      publish: ${{ needs.prepare.outputs.publish == 'true' }}
+    secrets:
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

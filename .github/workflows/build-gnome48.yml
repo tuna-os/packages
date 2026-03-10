@@ -1,0 +1,120 @@
+name: Build GNOME 48 Packages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/gnome-shell/**'
+      - 'packages/mutter/**'
+      - '.github/workflows/build-gnome48.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - 'packages/gnome-shell/**'
+      - 'packages/mutter/**'
+      - '.github/workflows/build-gnome48.yml'
+      - '.github/workflows/reusable-build-package.yml'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Specific package to build (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - gnome-shell
+          - mutter
+  schedule:
+    # Rebuild weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+jobs:
+  # Determine which packages to build
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set-matrix.outputs.packages }}
+      publish: ${{ steps.set-publish.outputs.publish }}
+    steps:
+      - name: Determine packages to build
+        id: set-matrix
+        run: |
+          if [ -n "${{ inputs.package }}" ]; then
+            # Manual trigger with specific package
+            PACKAGES='["${{ inputs.package }}"]'
+          else
+            # Build all GNOME packages
+            PACKAGES='["gnome-shell", "mutter"]'
+          fi
+          echo "packages=${PACKAGES}" >> "${GITHUB_OUTPUT}"
+          echo "Building packages: ${PACKAGES}"
+      
+      - name: Determine publish flag
+        id: set-publish
+        run: |
+          # Publish on push to main or manual dispatch
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  # Build GNOME packages
+  build-gnome-shell:
+    name: Build gnome-shell
+    if: ${{ contains(fromJson(needs.prepare.outputs.packages), 'gnome-shell') }}
+    needs: prepare
+    uses: ./.github/workflows/reusable-build-package.yml
+    with:
+      package-name: gnome-shell
+      arches: '["x86_64", "x86_64_v2", "aarch64"]'
+      publish: ${{ needs.prepare.outputs.publish == 'true' }}
+    secrets:
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+  
+  build-mutter:
+    name: Build mutter
+    if: ${{ contains(fromJson(needs.prepare.outputs.packages), 'mutter') }}
+    needs: prepare
+    uses: ./.github/workflows/reusable-build-package.yml
+    with:
+      package-name: mutter
+      arches: '["x86_64", "x86_64_v2", "aarch64"]'
+      publish: ${{ needs.prepare.outputs.publish == 'true' }}
+    secrets:
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+  # Summary job
+  summary:
+    name: Build Summary
+    needs: [prepare, build-gnome-shell, build-mutter]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build status
+        run: |
+          echo "GNOME 48 Package Build Summary"
+          echo "=============================="
+          echo "Event: ${{ github.event_name }}"
+          echo "Packages: ${{ needs.prepare.outputs.packages }}"
+          echo "Publish: ${{ needs.prepare.outputs.publish }}"
+          echo ""
+          echo "Build Results:"
+          echo "  gnome-shell: ${{ needs.build-gnome-shell.result }}"
+          echo "  mutter: ${{ needs.build-mutter.result }}"
+          
+          # Fail if any build failed
+          if [ "${{ needs.build-gnome-shell.result }}" = "failure" ] || [ "${{ needs.build-mutter.result }}" = "failure" ]; then
+            echo "ERROR: One or more builds failed"
+            exit 1
+          fi
+          
+          echo "✓ All builds completed successfully"

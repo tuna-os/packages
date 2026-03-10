@@ -1,0 +1,190 @@
+name: Reusable Package Build
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        description: 'Package name (directory in packages/)'
+        required: true
+        type: string
+      arches:
+        description: 'Architectures to build (JSON array)'
+        required: false
+        type: string
+        default: '["x86_64", "x86_64_v2", "aarch64"]'
+      publish:
+        description: 'Publish to GHCR'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      COSIGN_PRIVATE_KEY:
+        description: 'Cosign private key for signing'
+        required: false
+      GPG_PRIVATE_KEY:
+        description: 'GPG private key for RPM signing'
+        required: false
+      GPG_PASSPHRASE:
+        description: 'GPG key passphrase'
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  REPOSITORY: ${{ github.repository_owner }}/packages
+
+jobs:
+  build:
+    name: Build ${{ inputs.package-name }} (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(inputs.arches) }}
+    
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            mock \
+            rpm \
+            yum-utils \
+            createrepo_c \
+            python3-yaml
+          
+          # Install yq for YAML parsing
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          
+          # ORAS is pre-installed on GitHub runners
+          oras version
+      
+      - name: Verify package exists
+        id: verify
+        run: |
+          PACKAGE_DIR="packages/${{ inputs.package-name }}"
+          PACKAGE_YAML="${PACKAGE_DIR}/package.yaml"
+          
+          if [ ! -f "${PACKAGE_YAML}" ]; then
+            echo "Error: Package configuration not found: ${PACKAGE_YAML}" >&2
+            exit 1
+          fi
+          
+          # Extract package metadata
+          PKG_VERSION=$(yq eval '.version' "${PACKAGE_YAML}")
+          PKG_RELEASE=$(yq eval '.release' "${PACKAGE_YAML}")
+          PKG_NAME=$(yq eval '.name' "${PACKAGE_YAML}")
+          
+          echo "name=${PKG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "version=${PKG_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "release=${PKG_RELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${PKG_VERSION}-${PKG_RELEASE}-${{ matrix.arch }}-el10" >> "${GITHUB_OUTPUT}"
+          
+          echo "Package: ${PKG_NAME}"
+          echo "Version: ${PKG_VERSION}-${PKG_RELEASE}"
+          echo "Architecture: ${{ matrix.arch }}"
+      
+      - name: Restore mock cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/mock
+            /var/lib/mock
+          key: mock-cache-${{ matrix.arch }}-${{ hashFiles(format('packages/{0}/package.yaml', inputs.package-name)) }}
+          restore-keys: |
+            mock-cache-${{ matrix.arch }}-
+      
+      - name: Build RPM with mock
+        id: build
+        run: |
+          chmod +x scripts/rebuild-package.sh
+          
+          # Build the package
+          OUTPUT_DIR="./build-output-${{ matrix.arch }}"
+          export OUTPUT_DIR
+          
+          BUILT_RPM=$(sudo ./scripts/rebuild-package.sh "${{ inputs.package-name }}" "${{ matrix.arch }}")
+          
+          if [ -z "${BUILT_RPM}" ] || [ ! -f "${BUILT_RPM}" ]; then
+            echo "Error: Build failed - no RPM produced" >&2
+            exit 1
+          fi
+          
+          echo "rpm_path=${BUILT_RPM}" >> "${GITHUB_OUTPUT}"
+          echo "rpm_name=$(basename "${BUILT_RPM}")" >> "${GITHUB_OUTPUT}"
+          
+          # Copy to workspace for artifact upload
+          cp "${BUILT_RPM}" "./$(basename "${BUILT_RPM}")"
+      
+      - name: Import GPG key
+        if: ${{ inputs.publish && secrets.GPG_PRIVATE_KEY != '' }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+      
+      - name: Sign RPM
+        if: ${{ inputs.publish && secrets.GPG_PRIVATE_KEY != '' }}
+        run: |
+          RPM_FILE="${{ steps.build.outputs.rpm_name }}"
+          
+          # Sign with GPG
+          echo "${{ secrets.GPG_PASSPHRASE }}" | \
+            rpm --addsign \
+              --define "_gpg_name TunaOS Package Signing Key" \
+              "${RPM_FILE}"
+          
+          # Verify signature
+          rpm --checksig "${RPM_FILE}"
+      
+      - name: Login to GHCR
+        if: ${{ inputs.publish }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Push to GHCR with ORAS
+        if: ${{ inputs.publish }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          chmod +x scripts/oras-push.sh
+          
+          RPM_FILE="${{ steps.build.outputs.rpm_name }}"
+          export REGISTRY="${{ env.REGISTRY }}"
+          export REPOSITORY="${{ env.REPOSITORY }}"
+          
+          ./scripts/oras-push.sh "${RPM_FILE}"
+      
+      - name: Install Cosign
+        if: ${{ inputs.publish && secrets.COSIGN_PRIVATE_KEY != '' }}
+        uses: sigstore/cosign-installer@v3
+      
+      - name: Sign artifact with Cosign
+        if: ${{ inputs.publish && secrets.COSIGN_PRIVATE_KEY != '' }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+        run: |
+          FULL_REF="${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ steps.verify.outputs.name }}:${{ steps.verify.outputs.tag }}"
+          
+          echo "Signing: ${FULL_REF}"
+          echo "${COSIGN_PRIVATE_KEY}" | cosign sign --yes --key env://COSIGN_PRIVATE_KEY "${FULL_REF}"
+      
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.verify.outputs.name }}-${{ steps.verify.outputs.tag }}
+          path: ${{ steps.build.outputs.rpm_name }}
+          if-no-files-found: error
+          retention-days: 30

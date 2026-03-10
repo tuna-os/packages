@@ -1,0 +1,15 @@
+name: morewaita-icon-theme
+version: "46"
+release: "1"
+source:
+  type: git
+  url: https://github.com/somepaulo/MoreWaita.git
+  tag: v46
+  # For git sources, the build script will create an SRPM from the git checkout
+arches:
+  - x86_64
+  - x86_64_v2
+  - aarch64
+el_version: 10
+description: "MoreWaita icon theme - Adwaita icon theme extension"
+upstream: "https://github.com/somepaulo/MoreWaita"

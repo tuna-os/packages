@@ -5,15 +5,45 @@ on:
     branches:
       - main
     paths:
+      - 'packages/gdm/**'
+      - 'packages/glib2/**'
+      - 'packages/gnome-control-center/**'
+      - 'packages/gnome-initial-setup/**'
+      - 'packages/gnome-session/**'
+      - 'packages/gnome-settings-daemon/**'
       - 'packages/gnome-shell/**'
+      - 'packages/gsettings-desktop-schemas/**'
+      - 'packages/gtk4/**'
+      - 'packages/libadwaita/**'
+      - 'packages/libcupsfilters/**'
       - 'packages/mutter/**'
+      - 'packages/pango/**'
+      - 'packages/poppler/**'
+      - 'packages/tecla/**'
+      - 'packages/xdg-desktop-portal/**'
+      - 'packages/xdg-desktop-portal-gnome/**'
       - '.github/workflows/build-gnome48.yml'
       - '.github/workflows/reusable-build-package.yml'
       - 'scripts/**'
   pull_request:
     paths:
+      - 'packages/gdm/**'
+      - 'packages/glib2/**'
+      - 'packages/gnome-control-center/**'
+      - 'packages/gnome-initial-setup/**'
+      - 'packages/gnome-session/**'
+      - 'packages/gnome-settings-daemon/**'
       - 'packages/gnome-shell/**'
+      - 'packages/gsettings-desktop-schemas/**'
+      - 'packages/gtk4/**'
+      - 'packages/libadwaita/**'
+      - 'packages/libcupsfilters/**'
       - 'packages/mutter/**'
+      - 'packages/pango/**'
+      - 'packages/poppler/**'
+      - 'packages/tecla/**'
+      - 'packages/xdg-desktop-portal/**'
+      - 'packages/xdg-desktop-portal-gnome/**'
       - '.github/workflows/build-gnome48.yml'
       - '.github/workflows/reusable-build-package.yml'
       - 'scripts/**'
@@ -25,14 +55,28 @@ on:
         type: choice
         options:
           - ''
+          - gdm
+          - glib2
+          - gnome-control-center
+          - gnome-initial-setup
+          - gnome-session
+          - gnome-settings-daemon
           - gnome-shell
+          - gsettings-desktop-schemas
+          - gtk4
+          - libadwaita
+          - libcupsfilters
           - mutter
+          - pango
+          - poppler
+          - tecla
+          - xdg-desktop-portal
+          - xdg-desktop-portal-gnome
   schedule:
     # Rebuild weekly on Sundays at 2 AM UTC
     - cron: '0 2 * * 0'
 
 jobs:
-  # Determine which packages to build
   prepare:
     name: Prepare build matrix
     runs-on: ubuntu-latest
@@ -43,59 +87,44 @@ jobs:
       - name: Determine packages to build
         id: set-matrix
         run: |
+          ALL='["gdm","glib2","gnome-control-center","gnome-initial-setup","gnome-session","gnome-settings-daemon","gnome-shell","gsettings-desktop-schemas","gtk4","libadwaita","libcupsfilters","mutter","pango","poppler","tecla","xdg-desktop-portal","xdg-desktop-portal-gnome"]'
           if [ -n "${{ inputs.package }}" ]; then
-            # Manual trigger with specific package
             PACKAGES='["${{ inputs.package }}"]'
           else
-            # Build all GNOME packages
-            PACKAGES='["gnome-shell", "mutter"]'
+            PACKAGES="${ALL}"
           fi
           echo "packages=${PACKAGES}" >> "${GITHUB_OUTPUT}"
           echo "Building packages: ${PACKAGES}"
-      
+
       - name: Determine publish flag
         id: set-publish
         run: |
-          # Publish on push to main or manual dispatch
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || \
+             [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ "${{ github.event_name }}" = "schedule" ]; then
             echo "publish=true" >> "${GITHUB_OUTPUT}"
           else
             echo "publish=false" >> "${GITHUB_OUTPUT}"
           fi
 
-  # Build GNOME packages
-  build-gnome-shell:
-    name: Build gnome-shell
-    if: ${{ contains(fromJson(needs.prepare.outputs.packages), 'gnome-shell') }}
+  build:
+    name: Build ${{ matrix.package }}
     needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.prepare.outputs.packages) }}
     uses: ./.github/workflows/reusable-build-package.yml
     with:
-      package-name: gnome-shell
+      package-name: ${{ matrix.package }}
       arches: '["x86_64", "x86_64_v2", "aarch64"]'
       publish: ${{ needs.prepare.outputs.publish == 'true' }}
     secrets:
       COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-  
-  build-mutter:
-    name: Build mutter
-    if: ${{ contains(fromJson(needs.prepare.outputs.packages), 'mutter') }}
-    needs: prepare
-    uses: ./.github/workflows/reusable-build-package.yml
-    with:
-      package-name: mutter
-      arches: '["x86_64", "x86_64_v2", "aarch64"]'
-      publish: ${{ needs.prepare.outputs.publish == 'true' }}
-    secrets:
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-  # Summary job
   summary:
     name: Build Summary
-    needs: [prepare, build-gnome-shell, build-mutter]
+    needs: [prepare, build]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -106,15 +135,11 @@ jobs:
           echo "Event: ${{ github.event_name }}"
           echo "Packages: ${{ needs.prepare.outputs.packages }}"
           echo "Publish: ${{ needs.prepare.outputs.publish }}"
-          echo ""
-          echo "Build Results:"
-          echo "  gnome-shell: ${{ needs.build-gnome-shell.result }}"
-          echo "  mutter: ${{ needs.build-mutter.result }}"
-          
-          # Fail if any build failed
-          if [ "${{ needs.build-gnome-shell.result }}" = "failure" ] || [ "${{ needs.build-mutter.result }}" = "failure" ]; then
+          echo "Build result: ${{ needs.build.result }}"
+
+          if [ "${{ needs.build.result }}" = "failure" ]; then
             echo "ERROR: One or more builds failed"
             exit 1
           fi
-          
-          echo "✓ All builds completed successfully"
+
+          echo "✓ All builds completed"

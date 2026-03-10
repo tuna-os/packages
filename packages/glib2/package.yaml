@@ -2,8 +2,8 @@ name: glib2
 version: "2.84.4"
 release: "1.el10"
 source:
-  type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/glib2/2.84.4/1.el10/src/glib2-2.84.4-1.el10.src.rpm
+  type: copr
+  copr: jreilly1821/c10s-gnome
 arches:
   - x86_64
   - x86_64_v2

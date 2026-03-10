@@ -2,8 +2,8 @@ name: xdg-desktop-portal
 version: "1.20.3"
 release: "1.el10"
 source:
-  type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/xdg-desktop-portal/1.20.3/1.el10/src/xdg-desktop-portal-1.20.3-1.el10.src.rpm
+  type: copr
+  copr: jreilly1821/c10s-gnome
 arches:
   - x86_64
   - x86_64_v2

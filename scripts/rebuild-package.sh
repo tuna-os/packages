@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# Redirect all diagnostic output to stderr.
+# The RPM path is written to fd3 (original stdout) at the very end.
+exec 3>&1 1>&2
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -94,6 +98,43 @@ mkdir -p "${OUTPUT_DIR}"
 # Download source
 SOURCES_DIR="${OUTPUT_DIR}/SOURCES"
 mkdir -p "${SOURCES_DIR}"
+
+# For COPR type: use dnf download inside a container to fetch pre-built RPMs
+if [ "${SOURCE_TYPE}" = "copr" ]; then
+    if command -v yq &>/dev/null; then
+        COPR_REPO=$(yq eval '.source.copr' "${PACKAGE_YAML}")
+    else
+        COPR_REPO=$(python3 -c "import yaml; d=yaml.safe_load(open('${PACKAGE_YAML}')); print(d['source']['copr'])")
+    fi
+
+    RPM_ARCH="${ARCH}"
+    if [ "${RPM_ARCH}" = "x86_64_v2" ]; then
+        RPM_ARCH="x86_64"
+    fi
+
+    echo "Downloading from COPR: ${COPR_REPO} (arch: ${RPM_ARCH})..."
+
+    # Run dnf download inside an EL10 container so we get the correct binaries
+    podman run --rm \
+        --arch="${RPM_ARCH}" \
+        -v "${OUTPUT_DIR}:/output:Z" \
+        quay.io/almalinuxorg/almalinux-bootc:10 \
+        /bin/bash -exc "
+            dnf -y install 'dnf-command(copr)' &>/dev/null
+            dnf -y copr enable '${COPR_REPO}'
+            dnf -y download --arch '${RPM_ARCH}' --destdir /output/SOURCES '${PACKAGE_NAME}'
+        "
+
+    DOWNLOADED_RPM=$(find "${SOURCES_DIR}" -name "${PACKAGE_NAME}-*.rpm" -not -name "*.src.rpm" | head -n1)
+    if [ -z "${DOWNLOADED_RPM}" ]; then
+        echo "Error: dnf download failed to produce an RPM for ${PACKAGE_NAME}" >&2
+        exit 1
+    fi
+
+    echo "✓ Downloaded: ${DOWNLOADED_RPM}" >&2
+    echo "${DOWNLOADED_RPM}" >&3
+    exit 0
+fi
 
 case "${SOURCE_TYPE}" in
     srpm)
@@ -235,7 +276,7 @@ if [ -n "${BUILT_RPM}" ] && [ -f "${BUILT_RPM}" ]; then
     rpm -qip "${BUILT_RPM}" 2>/dev/null || true
     
     # Return path for use in CI
-    echo "${BUILT_RPM}"
+    echo "${BUILT_RPM}" >&3
 else
     echo "Error: No RPM built" >&2
     exit 1

@@ -2,8 +2,8 @@ name: tecla
 version: "47.0"
 release: "2.el10"
 source:
-  type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/tecla/47.0/2.el10/src/tecla-47.0-2.el10.src.rpm
+  type: copr
+  copr: jreilly1821/c10s-gnome
 arches:
   - x86_64
   - x86_64_v2

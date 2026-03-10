@@ -2,8 +2,8 @@ name: gtk4
 version: "4.18.6"
 release: "1.el10"
 source:
-  type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/gtk4/4.18.6/1.el10/src/gtk4-4.18.6-1.el10.src.rpm
+  type: copr
+  copr: jreilly1821/c10s-gnome
 arches:
   - x86_64
   - x86_64_v2

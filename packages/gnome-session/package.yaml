@@ -2,8 +2,8 @@ name: gnome-session
 version: "48.0"
 release: "1.el10"
 source:
-  type: srpm
-  url: https://kojipkgs.fedoraproject.org/packages/gnome-session/48.0/1.el10/src/gnome-session-48.0-1.el10.src.rpm
+  type: copr
+  copr: jreilly1821/c10s-gnome
 spec_source:
   type: local
   repo: https://src.fedoraproject.org/forks/jreilly1821/rpms/gnome-session.git

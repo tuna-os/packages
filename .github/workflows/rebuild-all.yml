@@ -26,7 +26,7 @@ jobs:
               workflow_id: 'build-gnome48.yml',
               ref: 'main'
             });
-      
+
       - name: Trigger MoreWaita build
         uses: actions/github-script@v7
         with:
@@ -48,7 +48,7 @@ jobs:
               workflow_id: 'build-tailscale.yml',
               ref: 'main'
             });
-      
+
       - name: Summary
         run: |
           echo "Triggered rebuild of all packages"

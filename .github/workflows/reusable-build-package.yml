@@ -127,13 +127,21 @@ jobs:
           cp "${BUILT_RPM}" "./$(basename "${BUILT_RPM}")"
       
       - name: Import GPG key
-        if: ${{ inputs.publish && secrets.GPG_PRIVATE_KEY != '' }}
+        if: ${{ inputs.publish }}
         run: |
+          if [ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "No GPG key configured, skipping RPM signing setup"
+            exit 0
+          fi
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
       
       - name: Sign RPM
-        if: ${{ inputs.publish && secrets.GPG_PRIVATE_KEY != '' }}
+        if: ${{ inputs.publish }}
         run: |
+          if [ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "No GPG key configured, skipping RPM signing"
+            exit 0
+          fi
           RPM_FILE="${{ steps.build.outputs.rpm_name }}"
           
           # Sign with GPG
@@ -168,14 +176,18 @@ jobs:
           ./scripts/oras-push.sh "${RPM_FILE}"
       
       - name: Install Cosign
-        if: ${{ inputs.publish && secrets.COSIGN_PRIVATE_KEY != '' }}
+        if: ${{ inputs.publish }}
         uses: sigstore/cosign-installer@v3
       
       - name: Sign artifact with Cosign
-        if: ${{ inputs.publish && secrets.COSIGN_PRIVATE_KEY != '' }}
+        if: ${{ inputs.publish }}
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
         run: |
+          if [ -z "${COSIGN_PRIVATE_KEY}" ]; then
+            echo "No cosign key configured, skipping cosign signing"
+            exit 0
+          fi
           FULL_REF="${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ steps.verify.outputs.name }}:${{ steps.verify.outputs.tag }}"
           
           echo "Signing: ${FULL_REF}"

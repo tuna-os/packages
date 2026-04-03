@@ -1,193 +1,164 @@
 # TunaOS Package Repository
 
-Custom package repository for TunaOS that provides GNOME 48 packages and MoreWaita icon theme as ORAS artifacts in GHCR. Replaces COPR dependencies with full control over package builds and versions.
+RPM package builds for TunaOS, targeting CentOS Stream / AlmaLinux 10 (EL10). Packages are built via GitHub Actions and published to GitHub Container Registry (GHCR) as ORAS artifacts.
 
-## Overview
+## Packages
 
-This repository builds RPM packages from upstream sources (Fedora SRPMs/Git) and publishes them to GitHub Container Registry (GHCR) as ORAS artifacts. Supports multi-architecture builds including x86_64_v2 for AlmaLinux Kitten.
+The `packages/` directory contains one subdirectory per package, each with a `package.yaml` metadata file:
 
-**Packages provided:**
-- GNOME 48 stack (gnome-shell, mutter, and dependencies)
-- MoreWaita icon theme
-- Tailscale VPN package
-
-**Architecture support:**
-- x86_64 (standard)
-- x86_64_v2 (optimized for AlmaLinux Kitten)
-- aarch64 (ARM64)
-
-## Repository Structure
-
-```
-packages/
-├── gnome-shell/
-│   └── package.yaml          # Package metadata and source configuration
-├── mutter/
-│   └── package.yaml
-├── morewaita-icon-theme/
-│   └── package.yaml
-└── ...
-
-scripts/
-├── oras-push.sh              # Push RPM to GHCR with ORAS
-├── oras-pull.sh              # Pull RPM from GHCR
-└── rebuild-package.sh        # Orchestrate mock build
-
-.github/workflows/
-├── reusable-build-package.yml  # Core package build workflow
-├── build-gnome48.yml          # GNOME 48 packages
-└── build-morewaita.yml        # MoreWaita icon theme
-```
+| Package | Description |
+|---------|-------------|
+| `gnome-shell` | GNOME Shell for EL10 |
+| `mutter` | GNOME compositor/window manager |
+| `gdm` | GNOME Display Manager |
+| `gtk4` | GTK 4 toolkit |
+| `libadwaita` | GNOME HIG widget library |
+| `mutter` | GNOME compositor |
+| `gnome-control-center` | GNOME Settings |
+| `gnome-session` | GNOME session manager |
+| `gnome-settings-daemon` | GNOME settings daemon |
+| `gnome-initial-setup` | First-run wizard |
+| `gsettings-desktop-schemas` | GSettings schemas |
+| `xdg-desktop-portal` | Desktop portal |
+| `xdg-desktop-portal-gnome` | GNOME desktop portal backend |
+| `pango` | Text layout library |
+| `poppler` | PDF rendering library |
+| `libcupsfilters` | CUPS filters library |
+| `tecla` | On-screen keyboard |
+| `glib2` | GLib core library |
+| `morewaita-icon-theme` | MoreWaita icon theme |
+| `tailscale` | Tailscale mesh VPN client |
 
 ## Package Metadata Format
 
-Each package directory contains a `package.yaml` file:
+Each `package.yaml` defines how to fetch and build the package:
 
 ```yaml
 name: gnome-shell
-version: "48.0"
-release: "1"
+version: "48.3"
+release: "7.el10"
 source:
-  type: srpm  # or 'git', 'tarball'
-  url: https://kojipkgs.fedoraproject.org/packages/gnome-shell/48.0/1.fc42/src/gnome-shell-48.0-1.fc42.src.rpm
-# Optional: override with a forked spec from Pagure (raw .spec URL)
-spec_source:
-   url: https://pagure.io/forks/<user>/rpms/gnome-shell/raw/<branch>/f/gnome-shell.spec
+  # Source type: copr | srpm | rpm | git
+  type: copr
+  copr: jreilly1821/c10s-gnome    # For copr type: enable this COPR and dnf download
 arches:
   - x86_64
   - x86_64_v2
   - aarch64
-el_version: 10  # Target EL version for rebuild
+el_version: 10
 ```
+
+### Source types
+
+| Type | Behaviour |
+|------|-----------|
+| `copr` | Enables the specified COPR repo inside an EL10 container and runs `dnf download` to fetch the pre-built RPM |
+| `srpm` | Downloads a source RPM and rebuilds it with `rpmbuild` |
+| `rpm` | Downloads a pre-built binary RPM directly (e.g. Tailscale upstream) |
+| `git` | Clones a git repo, creates a tarball, and builds a minimal spec |
+
+An optional `spec_source` block overrides the spec file used during an SRPM rebuild:
+
+```yaml
+spec_source:
+  type: local                      # 'local' = spec file checked in to this repo
+  repo: https://src.fedoraproject.org/forks/jreilly1821/rpms/gnome-shell.git
+  branch: rawhide-el10+-no-x11
+```
+
+## Architecture Support
+
+| Arch | Notes |
+|------|-------|
+| `x86_64` | Standard x86_64 |
+| `x86_64_v2` | Optimized for AlmaLinux Kitten / newer CPUs (`-march=x86-64-v2`) |
+| `aarch64` | ARM64, runs on `ubuntu-24.04-arm` runners |
 
 ## ORAS Artifact Naming
 
-Artifacts are published to GHCR with the format:
+Built RPMs are published to GHCR with the format:
 
 ```
 ghcr.io/tuna-os/packages/PACKAGE:VERSION-RELEASE-ARCH-el10
 ```
 
-Examples:
-- `ghcr.io/tuna-os/packages/gnome-shell:48.0-1-x86_64_v2-el10`
-- `ghcr.io/tuna-os/packages/morewaita-icon-theme:46-1-x86_64-el10`
-
-## Usage in TunaOS Builds
-
-The tunaOS main repository includes a download script that pulls packages during build:
-
-```bash
-# In tunaOS build_scripts/
-./download-tuna-packages.sh
+Example:
+```
+ghcr.io/tuna-os/packages/gnome-shell:48.3-7.el10-x86_64_v2-el10
 ```
 
-Packages are cached locally and installed during the build process.
+## Workflows
 
-## Triggering Builds
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `build-gnome48.yml` | Push to `packages/**` or manual | Builds all GNOME packages |
+| `build-morewaita.yml` | Push to `packages/morewaita-icon-theme/**` or manual | Builds MoreWaita icon theme |
+| `build-tailscale.yml` | Push to `packages/tailscale/**` or manual | Builds Tailscale RPM |
+| `rebuild-all.yml` | Scheduled / manual | Rebuilds every package |
+| `reusable-build-package.yml` | Called by other workflows | Core build logic |
 
-### Automatic (Renovate)
-Renovate monitors upstream sources and creates PRs when new versions are available. After merge, workflows automatically rebuild packages.
+Trigger a manual build:
 
-### Manual
-Trigger builds via GitHub Actions:
 ```bash
 gh workflow run build-gnome48.yml
-gh workflow run build-morewaita.yml
-```
-
-### Rebuild All
-Weekly scheduled rebuilds ensure packages stay current with security updates:
-```bash
 gh workflow run rebuild-all.yml
 ```
 
-## Development Workflow
+## Local Development
 
-1. **Add a new package:**
-   ```bash
-   mkdir -p packages/package-name
-   cat > packages/package-name/package.yaml <<EOF
-   name: package-name
+### Prerequisites
+
+- `podman` (for `copr` source type builds)
+- `rpmbuild` (for `srpm`/`git` source type builds)
+- `yq` or Python 3 with `pyyaml`
+- `oras` CLI (for pushing to GHCR)
+
+### Build a package locally
+
+```bash
+./scripts/rebuild-package.sh <package-name> <arch>
+
+# Examples:
+./scripts/rebuild-package.sh gnome-shell x86_64_v2
+./scripts/rebuild-package.sh morewaita-icon-theme x86_64
+./scripts/rebuild-package.sh tailscale aarch64
+```
+
+The script writes the built RPM path to stdout (fd3) and logs to stderr. Output lands in `./build-output/` by default; override with `OUTPUT_DIR=`.
+
+### Push to GHCR
+
+```bash
+export GITHUB_TOKEN=<your_token>
+./scripts/oras-push.sh path/to/package.rpm
+```
+
+### Pull from GHCR
+
+```bash
+./scripts/oras-pull.sh <package-name> <version-tag>
+```
+
+## Adding a New Package
+
+1. Create `packages/<package-name>/package.yaml`:
+
+   ```yaml
+   name: my-package
    version: "1.0"
    release: "1"
    source:
      type: srpm
-     url: https://...
-   arches: [x86_64, x86_64_v2, aarch64]
+     url: https://kojipkgs.fedoraproject.org/.../my-package-1.0-1.fc42.src.rpm
+   arches:
+     - x86_64
+     - x86_64_v2
+     - aarch64
    el_version: 10
-   EOF
    ```
 
-2. **Test build locally:**
-   ```bash
-   ./scripts/rebuild-package.sh package-name x86_64_v2
-   ```
+2. If the package needs a spec override, add `<package-name>.spec` alongside `package.yaml`.
 
-3. **Push to GHCR:**
-   ```bash
-   ./scripts/oras-push.sh package-name-1.0-1.el10.x86_64_v2.rpm
-   ```
+3. Add the package path to the appropriate workflow trigger in `.github/workflows/`.
 
-## Architecture-Specific Builds
-
-### x86_64_v2 Support
-Packages built for x86_64_v2 use optimized compiler flags in mock:
-
-```bash
-config_opts['target_arch'] = 'x86_64'
-config_opts['macros']['%optflags'] = '-O2 -g -march=x86-64-v2'
-```
-
-This provides ~10-20% performance improvement on newer CPUs while maintaining compatibility with AlmaLinux 10.
-
-## Signing
-
-All RPMs are signed with the TunaOS GPG key before being pushed to GHCR:
-
-```bash
-rpm --addsign package.rpm
-```
-
-ORAS artifacts include cosign signatures for verification:
-
-```bash
-cosign verify ghcr.io/tuna-os/packages/gnome-shell:48.0-1-x86_64_v2-el10
-```
-
-## Renovate Configuration
-
-See `renovate.json5` for automated dependency tracking. Custom datasources:
-- **Fedora Koji**: Monitors GNOME packages in Fedora builds
-- **GitHub Releases**: Tracks MoreWaita upstream releases
-
-## Initial Setup
-
-### Prerequisites
-- GitHub repository created at `tuna-os/packages`
-- GHCR write permission (via `GITHUB_TOKEN`)
-- GPG signing key configured in repository secrets
-- `oras` CLI installed (available in GitHub Actions runners by default)
-
-### First-Time Setup
-1. Clone this repository
-2. Configure GitHub secrets:
-   - `COSIGN_PRIVATE_KEY` - for signing artifacts
-   - `GPG_PRIVATE_KEY` - for signing RPMs
-   - `GPG_PASSPHRASE` - GPG key passphrase
-3. Run initial package population:
-   ```bash
-   gh workflow run build-gnome48.yml
-   gh workflow run build-morewaita.yml
-   ```
-
-## Integration with TunaOS
-
-See the main [tunaOS repository](https://github.com/tuna-os/tunaOS) for integration details. The `build_scripts/download-tuna-packages.sh` script automatically pulls packages during OS image builds.
-
-## License
-
-Same as TunaOS main repository - see LICENSE file.
-
-## Contributing
-
-This is an internal package repository for TunaOS. For package requests or issues, please file them in the main [tunaOS repository](https://github.com/tuna-os/tunaOS/issues).
+4. Open a PR — CI will build and publish the RPM on merge.
